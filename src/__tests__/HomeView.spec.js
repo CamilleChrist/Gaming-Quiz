@@ -16,4 +16,12 @@ describe("HomeView", () => {
     const wrapper = mount(HomeView, { props: { code: "AB12CD" } });
     expect(wrapper.get("#room-code").element.value).toBe("AB12CD");
   });
+
+  it("asks for a pseudo until one is entered when a room code is set", async () => {
+    const wrapper = mount(HomeView, { props: { code: "AB12CD" } });
+    expect(wrapper.text()).toContain("Entre ton pseudo");
+
+    await wrapper.get("#pseudo").setValue("Camille");
+    expect(wrapper.text()).not.toContain("Entre ton pseudo");
+  });
 });
