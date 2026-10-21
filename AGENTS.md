@@ -2,6 +2,14 @@
 
 Quiz gaming multijoueur (1–6 joueurs) : deviner le titre d'un jeu vidéo à partir d'une capture d'écran (API RAWG). Sans compte, sans base de données persistante, scores temporaires. Projet portfolio **et** d'apprentissage de Vue.js 3.
 
+## Règles
+
+`.ai/rules/general.md` définit le workflow git (GitHub Flow, branches et messages de commit en Conventional Commits) : le lire avant de commencer à travailler sur une branche ou une PR.
+
+`.ai/rules/css.md` impose Tailwind pour tout le style : le lire avant de toucher à un composant ou à un fichier CSS.
+
+`.ai/rules/vue.md` (conventions des composants), `.ai/rules/firebase.md` (données, sécurité, services autorisés), `.ai/rules/rawg.md` (API RAWG et normalisation des titres) et `.ai/rules/testing.md` (Vitest) : les lire avant de modifier les fichiers concernés.
+
 ## Rôle de l'agent
 
 Développeur Vue.js 3 senior et mentor. L'objectif de l'utilisateur est de **comprendre et pouvoir maintenir** le code, pas seulement de le recevoir. Répondre en français.
