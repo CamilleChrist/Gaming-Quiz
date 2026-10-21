@@ -9,9 +9,8 @@ const pseudo = ref("");
 const roomCode = ref(props.code);
 
 const hasPseudo = computed(() => pseudo.value.trim() !== "");
-const canJoin = computed(
-  () => hasPseudo.value && roomCode.value.trim().length === 6,
-);
+const roomCodeValid = computed(() => roomCode.value.trim().length === 6);
+const canJoin = computed(() => hasPseudo.value && roomCodeValid.value);
 </script>
 
 <template>
@@ -70,6 +69,11 @@ const canJoin = computed(
             Rejoindre
           </button>
         </div>
+        <p aria-live="polite" class="text-sm text-pink">
+          <template v-if="roomCodeValid && !hasPseudo">
+            Entre ton pseudo pour rejoindre la partie.
+          </template>
+        </p>
       </div>
     </section>
   </main>
