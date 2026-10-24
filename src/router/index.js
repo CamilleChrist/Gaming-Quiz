@@ -1,5 +1,6 @@
 import { createRouter, createWebHistory } from "vue-router";
 import HomeView from "../views/HomeView.vue";
+import LobbyView from "../views/LobbyView.vue";
 
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
@@ -12,6 +13,11 @@ const router = createRouter({
     {
       path: "/join/:code",
       component: HomeView,
+      props: true,
+    },
+    {
+      path: "/room/:code",
+      component: LobbyView,
       props: true,
     },
   ],
