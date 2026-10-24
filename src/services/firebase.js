@@ -1,7 +1,7 @@
 // Import the functions you need from the SDKs you need
 import { initializeApp } from "firebase/app";
 import { initializeAuth, browserSessionPersistence, signInAnonymously } from "firebase/auth";
-import { getDatabase, ref, set, onValue, onDisconnect, serverTimestamp } from "firebase/database";
+import { getDatabase, ref, get, set, remove, onValue, onDisconnect, serverTimestamp } from "firebase/database";
 
 // Your web app's Firebase configuration
 const firebaseConfig = {
@@ -50,6 +50,27 @@ export async function createRoom(name) {
   await onDisconnect(roomRef).remove(); // Si l'hôte ferme l'onglet, Firebase supprime le salon côté serveur.
 
   return code;
+}
+
+export async function joinRoom(code, name) {
+  const uid = await getPlayerId();
+  const playerRef = ref(db, `rooms/${code}/players/${uid}`);
+
+  // Les règles RTDB ne savent pas compter les joueurs : la limite de 6 est vérifiée ici.
+  // Ce n'est pas infaillible : un tricheur peut passer outre, et si deux joueurs arrivent pile en même temps, on peut se retrouver à 7. Acceptable ici.
+  const players = await get(ref(db, `rooms/${code}/players`));
+  if (players.size >= 6) throw new Error("Salon complet");
+
+  await set(playerRef, { name: name.trim(), score: 0, joinedAt: serverTimestamp() }); // Refusé par les règles si le salon n'existe pas ou a déjà commencé.
+  await onDisconnect(playerRef).remove(); // Si le joueur ferme l'onglet, il quitte le salon.
+
+  return code;
+}
+
+export async function leaveRoom(code, isHost) {
+  const uid = await getPlayerId();
+  // L'hôte qui part ferme le salon pour tout le monde.
+  await remove(ref(db, isHost ? `rooms/${code}` : `rooms/${code}/players/${uid}`));
 }
 
 // Abonnement temps réel à une partie du salon ("meta", "players"…).

@@ -1,7 +1,7 @@
 <script setup>
 import { ref, computed } from "vue";
 import { useRouter } from "vue-router";
-import { createRoom } from "../services/firebase";
+import { createRoom, joinRoom } from "../services/firebase";
 
 const props = defineProps({
   code: { type: String, default: "" },
@@ -15,20 +15,35 @@ const roomCodeValid = computed(() => roomCode.value.trim().length === 6);
 const canJoin = computed(() => hasPseudo.value && roomCodeValid.value);
 
 const router = useRouter();
-const creating = ref(false);
-const createError = ref("");
+const busy = ref(false);
+const errorMessage = ref("");
 
-async function createGame() {
-  creating.value = true;
-  createError.value = "";
+// Créer ou rejoindre : même déroulé, seule l'action Firebase change
+async function goToRoom(enterRoom, failMessage) {
+  busy.value = true;
+  errorMessage.value = "";
   try {
-    const code = await createRoom(pseudo.value);
+    const code = await enterRoom();
     router.push(`/room/${code}`);
   } catch (error) {
     console.error(error);
-    createError.value = "Impossible de créer la partie, réessaie.";
-    creating.value = false;
+    errorMessage.value = failMessage;
+    busy.value = false;
   }
+}
+
+function createGame() {
+  goToRoom(
+    () => createRoom(pseudo.value),
+    "Impossible de créer la partie, réessaie.",
+  );
+}
+
+function joinGame() {
+  goToRoom(
+    () => joinRoom(roomCode.value.trim().toUpperCase(), pseudo.value),
+    "Salon introuvable, complet ou partie déjà lancée.",
+  );
 }
 </script>
 
@@ -63,15 +78,12 @@ async function createGame() {
 
       <button
         type="button"
-        :disabled="!hasPseudo || creating"
+        :disabled="!hasPseudo || busy"
         class="rounded-full bg-electric px-6 py-3 font-bold transition hover:brightness-110 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-pink disabled:cursor-not-allowed disabled:opacity-40"
         @click="createGame"
       >
-        {{ creating ? "Création…" : "Créer une partie" }}
+        Créer une partie
       </button>
-      <p v-if="createError" role="alert" class="text-sm text-pink">
-        {{ createError }}
-      </p>
 
       <div class="flex flex-col gap-2">
         <label for="room-code" class="font-semibold">Code du salon</label>
@@ -86,8 +98,9 @@ async function createGame() {
           />
           <button
             type="button"
-            :disabled="!canJoin"
+            :disabled="!canJoin || busy"
             class="rounded-full bg-pink px-5 py-3 font-bold text-night transition hover:brightness-110 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-electric disabled:cursor-not-allowed disabled:opacity-40"
+            @click="joinGame"
           >
             Rejoindre
           </button>
@@ -96,6 +109,7 @@ async function createGame() {
           <template v-if="roomCodeValid && !hasPseudo">
             Entre ton pseudo pour rejoindre la partie.
           </template>
+          <template v-else-if="errorMessage">{{ errorMessage }}</template>
         </p>
       </div>
     </section>
