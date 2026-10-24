@@ -1,10 +1,7 @@
 // Import the functions you need from the SDKs you need
 import { initializeApp } from "firebase/app";
-import {
-  initializeAuth,
-  browserSessionPersistence,
-  signInAnonymously,
-} from "firebase/auth";
+import { initializeAuth, browserSessionPersistence, signInAnonymously } from "firebase/auth";
+import { getDatabase, ref, set, onValue, onDisconnect, serverTimestamp } from "firebase/database";
 
 // Your web app's Firebase configuration
 const firebaseConfig = {
@@ -20,8 +17,46 @@ const firebaseConfig = {
 // Initialize Firebase
 const app = initializeApp(firebaseConfig);
 const auth = initializeAuth(app, { persistence: browserSessionPersistence });
+const db = getDatabase(app);
 
 export async function getPlayerId() {
   const { user } = await signInAnonymously(auth);
   return user.uid;
+}
+
+export async function createRoom(name) {
+  const uid = await getPlayerId();
+  const room = {
+    meta: {
+      hostId: uid,
+      createdAt: serverTimestamp(),
+      status: "lobby",
+      rounds: 10,
+      secondsPerRound: 30,
+    },
+    players: {
+      [uid]: {
+        name: name.trim(),
+        score: 0,
+        joinedAt: serverTimestamp(),
+      },
+    },
+  };
+
+  const code = crypto.randomUUID().slice(0, 6).toUpperCase(); // 6 caractères hexadécimaux aléatoires (0-9, A-F) : ~16 millions de codes.
+  const roomRef = ref(db, `rooms/${code}`);
+
+  await set(roomRef, room); // Si le code est déjà pris (quasi impossible), les règles refusent d'écraser le salon : l'erreur remonte et le joueur n'a qu'à recliquer.
+  await onDisconnect(roomRef).remove(); // Si l'hôte ferme l'onglet, Firebase supprime le salon côté serveur.
+
+  return code;
+}
+
+// Abonnement temps réel à une partie du salon ("meta", "players"…).
+// On lit nœud par nœud : les règles n'autorisent pas la lecture du salon entier, pour pouvoir cacher les réponses ("answers") plus tard.
+// Retourne la fonction de désabonnement, à appeler dans onUnmounted.
+export function watchRoom(code, node, callback) {
+  return onValue(ref(db, `rooms/${code}/${node}`), (snapshot) =>
+    callback(snapshot.val()),
+  );
 }
