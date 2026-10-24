@@ -38,7 +38,7 @@ Priorités, dans l'ordre :
 - Privilégier `ref`, `computed`, `onMounted`/`onUnmounted`, props/events simples, fonctions courtes aux noms explicites.
 - HTTP : `fetch` natif. Pas de lib de formulaires, validation, animations ou requêtes.
 - **CSS : Tailwind CSS** (accord de l'utilisateur), via le plugin Vite `@tailwindcss/vite`. Les couleurs et espacements du thème sont des tokens déclarés dans `@theme` (`src/assets/main.css`) ; ne pas écrire de valeurs en dur dans les classes. Pour les animations, utiliser les utilitaires Tailwind ou `@keyframes` dans ce fichier, sans lib d'animation. Pas de bibliothèque de composants (daisyUI, etc.) sans accord.
-- **Backend : Firebase Realtime Database** (SDK `firebase` modulaire, seule dépendance runtime prévue). **Pas de serveur Node.js ni Socket.IO** tant que Firebase suffit. **Firebase Hosting** est approuvé pour héberger le front (build Vite dans `dist/`), gratuit sur Spark. Pas d'hébergement OVH (mutualisé, sans Node persistant). Ne pas activer d'autre service Firebase (Auth, Functions, etc.) sans accord.
+- **Backend : Firebase Realtime Database** (SDK `firebase` modulaire, seule dépendance runtime prévue). **Pas de serveur Node.js ni Socket.IO** tant que Firebase suffit. **Firebase Hosting** est approuvé pour héberger le front (build Vite dans `dist/`), gratuit sur Spark. Pas d'hébergement OVH (mutualisé, sans Node persistant). Firebase Auth (anonyme uniquement) est approuvé. Ne pas activer d'autre service Firebase (Functions, etc.) sans accord.
 
 ## Règles du jeu (contraintes dures)
 
@@ -79,8 +79,8 @@ rooms/{code}/
 
 ### Limites de sécurité à garder en tête et à expliquer à l'utilisateur
 - Sans Cloud Functions (plan **Blaze**, payant), la logique tourne côté client : un client malveillant peut tricher (se donner des points, lire les données). Ne jamais présenter les scores client comme fiables.
-- Les règles RTDB ne peuvent restreindre par utilisateur qu'avec Firebase Auth. **Décision ouverte** : activer l'authentification anonyme (gratuite, pas de compte visible, mais un service de plus → demander l'accord) pour lier les écritures à un `uid`.
-- Secret de la réponse : ne pas stocker le titre en clair là où tous peuvent le lire pendant la manche. Options à proposer (de la plus simple à la plus sûre) : (1) l'hôte seul détient les questions en mémoire et n'écrit le titre qu'à la révélation ; (2) stocker un hash du titre normalisé ; (3) Cloud Function (payant, à annoncer). Choisir avec l'utilisateur.
+- Les règles RTDB ne peuvent restreindre par utilisateur qu'avec Firebase Auth. **Décidé** : authentification anonyme Firebase activée (gratuite, pas de compte visible) ; l'`uid` sert d'identifiant de joueur et les règles s'appuient sur `auth.uid`. Persistance par onglet (`browserSessionPersistence`).
+- Secret de la réponse : ne pas stocker le titre en clair là où tous peuvent le lire pendant la manche. Options à proposer (de la plus simple à la plus sûre) : (1) l'hôte seul détient les questions en mémoire et n'écrit le titre qu'à la révélation ; (2) stocker un hash du titre normalisé ; (3) Cloud Function (payant, à annoncer). **Décidé : option (1)**, l'hôte garde les titres en mémoire.
 - Règles de sécurité Firebase à écrire (`database.rules.json`) : limiter à 6 joueurs, valider types/longueurs (pseudo, réponse), interdire de modifier les données d'un autre joueur, interdire les écritures hors statut attendu.
 - Nettoyage : supprimer `rooms/{code}` à la fin de partie ; pour les salons abandonnés, utiliser `onDisconnect()` côté hôte + `createdAt`/`lastActivity` et suppression opportuniste des salons périmés à la création d'un salon. Pas de tâche planifiée sur Spark.
 - Limites Spark à rappeler : plafond de connexions simultanées (100), stockage 1 Go, transfert 10 Go/mois. Largement suffisant pour un portfolio.
