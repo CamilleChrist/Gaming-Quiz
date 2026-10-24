@@ -1,5 +1,7 @@
 <script setup>
 import { ref, computed } from "vue";
+import { useRouter } from "vue-router";
+import { createRoom } from "../services/firebase";
 
 const props = defineProps({
   code: { type: String, default: "" },
@@ -11,6 +13,23 @@ const roomCode = ref(props.code);
 const hasPseudo = computed(() => pseudo.value.trim() !== "");
 const roomCodeValid = computed(() => roomCode.value.trim().length === 6);
 const canJoin = computed(() => hasPseudo.value && roomCodeValid.value);
+
+const router = useRouter();
+const creating = ref(false);
+const createError = ref("");
+
+async function createGame() {
+  creating.value = true;
+  createError.value = "";
+  try {
+    const code = await createRoom(pseudo.value);
+    router.push(`/room/${code}`);
+  } catch (error) {
+    console.error(error);
+    createError.value = "Impossible de créer la partie, réessaie.";
+    creating.value = false;
+  }
+}
 </script>
 
 <template>
@@ -44,11 +63,15 @@ const canJoin = computed(() => hasPseudo.value && roomCodeValid.value);
 
       <button
         type="button"
-        :disabled="!hasPseudo"
+        :disabled="!hasPseudo || creating"
         class="rounded-full bg-electric px-6 py-3 font-bold transition hover:brightness-110 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-pink disabled:cursor-not-allowed disabled:opacity-40"
+        @click="createGame"
       >
-        Créer une partie
+        {{ creating ? "Création…" : "Créer une partie" }}
       </button>
+      <p v-if="createError" role="alert" class="text-sm text-pink">
+        {{ createError }}
+      </p>
 
       <div class="flex flex-col gap-2">
         <label for="room-code" class="font-semibold">Code du salon</label>
