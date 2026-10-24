@@ -7,6 +7,7 @@
         "players": {
           ".read": "auth != null",
           "$uid": {
+            ".write": "$uid === auth.uid && (!newData.exists() || root.child('rooms/' + $code + '/meta/status').val() === 'lobby')",
             "name": { ".validate": "newData.isString() && newData.val().length <= 20" }
           }
         }

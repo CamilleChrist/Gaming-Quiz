@@ -1,6 +1,7 @@
 <script setup>
 import { ref, computed, onMounted, onUnmounted } from "vue";
-import { getPlayerId, watchRoom } from "../services/firebase";
+import { useRouter } from "vue-router";
+import { getPlayerId, watchRoom, leaveRoom } from "../services/firebase";
 
 const props = defineProps({
   code: { type: String, required: true },
@@ -40,6 +41,13 @@ onUnmounted(() => unsubscribes.forEach((unsubscribe) => unsubscribe()));
 async function copyLink() {
   await navigator.clipboard.writeText(inviteLink.value);
   copied.value = true;
+}
+
+const router = useRouter();
+
+async function leave() {
+  await leaveRoom(props.code, isHost.value);
+  router.push("/");
 }
 </script>
 
@@ -108,7 +116,6 @@ async function copyLink() {
         </ul>
       </section>
 
-      <!-- Le lancement de la partie arrive à l'étape « première manche » -->
       <button
         v-if="isHost"
         type="button"
@@ -120,6 +127,14 @@ async function copyLink() {
       <p v-else class="text-center text-muted">
         En attente du lancement par l'hôte…
       </p>
+
+      <button
+        type="button"
+        class="rounded-full border-2 border-muted px-6 py-3 font-bold text-muted transition hover:text-ink focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-pink"
+        @click="leave"
+      >
+        Quitter le salon
+      </button>
     </template>
   </main>
 </template>
