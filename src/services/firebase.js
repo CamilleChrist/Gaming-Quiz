@@ -120,6 +120,11 @@ export async function resetGame(code, playerIds) {
   await update(ref(db, `rooms/${code}`), updates);
 }
 
+// Réglages du salon choisis par l'hôte, par exemple { rounds: 5 } ou { secondsPerRound: 45 }.
+export async function updateSettings(code, settings) {
+  await update(ref(db, `rooms/${code}/meta`), settings);
+}
+
 export async function submitAnswer(code, text) {
   const uid = await getPlayerId();
   // La réponse reste cachée jusqu'à la révélation ; « answered » est visible de tous pour savoir qui a répondu.

@@ -1,7 +1,7 @@
 <script setup>
 import { ref, computed, onMounted, onUnmounted } from "vue";
 import { useRouter } from "vue-router";
-import { getPlayerId, watchRoom, leaveRoom, startGame } from "../services/firebase";
+import { getPlayerId, watchRoom, leaveRoom, startGame, updateSettings } from "../services/firebase";
 import { fetchQuestions } from "../services/rawg";
 
 const props = defineProps({
@@ -65,6 +65,15 @@ async function start() {
 async function leave() {
   await leaveRoom(props.code, isHost.value);
   router.push("/");
+}
+
+const ROUND_CHOICES = [5, 10, 15];
+const SECONDS_CHOICES = [15, 30, 45];
+
+// La valeur affichée vient de Firebase (:value) ; on n'écrit dans Firebase que quand l'hôte la change.
+// Tous les joueurs voient alors le nouveau réglage en temps réel.
+function changeSetting(name, event) {
+  updateSettings(props.code, { [name]: Number(event.target.value) });
 }
 </script>
 
@@ -131,6 +140,38 @@ async function leave() {
             </span>
           </li>
         </ul>
+      </section>
+
+      <!-- Seul l'hôte peut modifier les réglages ; les autres les voient sans pouvoir y toucher -->
+      <section class="grid grid-cols-2 gap-4 rounded-3xl bg-card p-6">
+        <div class="flex flex-col gap-2">
+          <label for="rounds" class="font-semibold">Manches</label>
+          <select
+            id="rounds"
+            :value="meta.rounds"
+            :disabled="!isHost"
+            class="rounded-xl bg-night px-4 py-3 focus:outline-2 focus:outline-electric disabled:opacity-60"
+            @change="changeSetting('rounds', $event)"
+          >
+            <option v-for="choice in ROUND_CHOICES" :key="choice" :value="choice">
+              {{ choice }}
+            </option>
+          </select>
+        </div>
+        <div class="flex flex-col gap-2">
+          <label for="seconds" class="font-semibold">Temps par manche</label>
+          <select
+            id="seconds"
+            :value="meta.secondsPerRound"
+            :disabled="!isHost"
+            class="rounded-xl bg-night px-4 py-3 focus:outline-2 focus:outline-electric disabled:opacity-60"
+            @change="changeSetting('secondsPerRound', $event)"
+          >
+            <option v-for="choice in SECONDS_CHOICES" :key="choice" :value="choice">
+              {{ choice }} s
+            </option>
+          </select>
+        </div>
       </section>
 
       <button
