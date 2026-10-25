@@ -1,5 +1,5 @@
 <script setup>
-import { ref, computed, onMounted, onUnmounted } from "vue";
+import { ref, computed, onMounted, onUnmounted, useTemplateRef } from "vue";
 import { useRouter } from "vue-router";
 import { getPlayerId, watchRoom, leaveRoom, startGame, updateSettings } from "../services/firebase";
 import { fetchQuestions } from "../services/rawg";
@@ -12,7 +12,8 @@ const playerId = ref("");
 const meta = ref(null);
 const players = ref({});
 const loading = ref(true);
-const copied = ref(false);
+const copyMessage = ref("");
+const inviteInput = useTemplateRef("invite-input"); // L'élément <input ref="invite-input"> du template
 const starting = ref(false);
 const startError = ref("");
 const router = useRouter();
@@ -38,15 +39,36 @@ onMounted(async () => {
       // Quand l'hôte lance la partie, tous les joueurs passent à l'écran de jeu
       if (value?.status === "playing") router.push(`/room/${props.code}/play`);
     }),
-    watchRoom(props.code, "players", (value) => (players.value = value ?? {})),
+    watchRoom(props.code, "players", (value) => {
+      players.value = value ?? {};
+      // Arrivé ici sans avoir rejoint (lien /room/… collé, page actualisée) : on passe par l'écran pour rejoindre.
+      if (value && !(playerId.value in value)) router.replace(`/join/${props.code}`);
+    }),
   ];
+  window.addEventListener("beforeunload", warnHostBeforeLeaving);
 });
 
-onUnmounted(() => unsubscribes.forEach((unsubscribe) => unsubscribe()));
+onUnmounted(() => {
+  unsubscribes.forEach((unsubscribe) => unsubscribe());
+  window.removeEventListener("beforeunload", warnHostBeforeLeaving);
+});
+
+// Si l'hôte ferme ou actualise la page, le salon est supprimé pour tout le monde :
+// le navigateur lui demande d'abord confirmation.
+function warnHostBeforeLeaving(event) {
+  if (isHost.value) event.preventDefault();
+}
 
 async function copyLink() {
-  await navigator.clipboard.writeText(inviteLink.value);
-  copied.value = true;
+  try {
+    await navigator.clipboard.writeText(inviteLink.value);
+    copyMessage.value = "Lien copié !";
+  } catch {
+    // Presse-papiers indisponible (site ouvert en http sur un téléphone, permission refusée…) :
+    // on sélectionne le lien pour que le joueur le copie lui-même.
+    inviteInput.value.select();
+    copyMessage.value = "Copie automatique impossible : le lien est sélectionné, copie-le à la main.";
+  }
 }
 
 async function start() {
@@ -84,7 +106,7 @@ function changeSetting(name, event) {
     <p v-if="loading" class="text-center text-muted">Chargement du salon…</p>
 
     <section v-else-if="!meta" class="flex flex-col gap-4 text-center">
-      <p>Ce salon n'existe plus.</p>
+      <p>Ce salon n'existe plus : l'hôte l'a fermé ou a quitté la partie.</p>
       <RouterLink to="/" class="font-bold text-pink underline">
         Retour à l'accueil
       </RouterLink>
@@ -103,6 +125,7 @@ function changeSetting(name, event) {
         <div class="flex gap-2">
           <input
             id="invite-link"
+            ref="invite-input"
             :value="inviteLink"
             readonly
             class="min-w-0 flex-1 rounded-xl bg-night px-4 py-3 text-muted focus:outline-2 focus:outline-electric"
@@ -115,14 +138,13 @@ function changeSetting(name, event) {
             Copier
           </button>
         </div>
-        <p aria-live="polite" class="text-sm text-pink">
-          <template v-if="copied">Lien copié !</template>
-        </p>
+        <p aria-live="polite" class="text-sm text-pink">{{ copyMessage }}</p>
       </section>
 
       <section class="flex flex-col gap-4 rounded-3xl bg-card p-6">
         <h2 class="font-semibold">Joueurs {{ playerList.length }}/6</h2>
-        <ul class="flex flex-col gap-2">
+        <!-- aria-live : les lecteurs d'écran annoncent les arrivées et départs -->
+        <ul class="flex flex-col gap-2" aria-live="polite">
           <li
             v-for="player in playerList"
             :key="player.id"

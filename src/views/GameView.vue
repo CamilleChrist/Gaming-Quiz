@@ -26,6 +26,7 @@ const players = ref({});
 const answered = ref({});
 const loading = ref(true);
 const now = ref(serverNow());
+const answerError = ref("");
 
 const isHost = computed(() => meta.value?.hostId === playerId.value);
 const secondsLeft = computed(() =>
@@ -69,6 +70,16 @@ watch(revealOver, (over) => {
 
 const router = useRouter();
 
+async function sendAnswer(text) {
+  try {
+    await submitAnswer(props.code, text);
+  } catch (error) {
+    // Le plus souvent : réponse arrivée après la fin du chrono, refusée par les règles.
+    console.error(error);
+    answerError.value = "Ta réponse n'a pas pu être envoyée (temps écoulé ou connexion perdue).";
+  }
+}
+
 function replay() {
   resetGame(props.code, Object.keys(players.value));
 }
@@ -90,18 +101,29 @@ onMounted(async () => {
       // « Rejouer » : l'hôte remet le salon en attente, tout le monde y retourne
       if (value?.status === "lobby") router.push(`/room/${props.code}`);
     }),
-    watchRoom(props.code, "round", (value) => (round.value = value)),
+    watchRoom(props.code, "round", (value) => {
+      round.value = value;
+      answerError.value = ""; // Nouvelle manche : on oublie l'erreur de la précédente.
+    }),
     watchRoom(props.code, "players", (value) => (players.value = value ?? {})),
     watchRoom(props.code, "answered", (value) => (answered.value = value ?? {})),
   ];
   // Le chrono se recalcule 4 fois par seconde à partir de l'heure de fin écrite par l'hôte.
   timer = setInterval(() => (now.value = serverNow()), 250);
+  window.addEventListener("beforeunload", warnHostBeforeLeaving);
 });
 
 onUnmounted(() => {
   unsubscribes.forEach((unsubscribe) => unsubscribe());
   clearInterval(timer);
+  window.removeEventListener("beforeunload", warnHostBeforeLeaving);
 });
+
+// Si l'hôte ferme ou actualise la page, le salon est supprimé pour tout le monde :
+// le navigateur lui demande d'abord confirmation.
+function warnHostBeforeLeaving(event) {
+  if (isHost.value) event.preventDefault();
+}
 </script>
 
 <template>
@@ -109,7 +131,7 @@ onUnmounted(() => {
     <p v-if="loading || (meta && !round)" class="text-center text-muted">Chargement de la partie…</p>
 
     <section v-else-if="!meta" class="flex flex-col gap-4 text-center">
-      <p>Cette partie n'existe plus.</p>
+      <p>Cette partie n'existe plus : l'hôte l'a quittée.</p>
       <RouterLink to="/" class="font-bold text-pink underline">Retour à l'accueil</RouterLink>
     </section>
 
@@ -122,7 +144,8 @@ onUnmounted(() => {
       :rounds="meta.rounds"
       :seconds-left="secondsLeft"
       :players="playerList"
-      @submit="(text) => submitAnswer(code, text)"
+      :error="answerError"
+      @submit="sendAnswer"
     />
 
     <RoundReveal

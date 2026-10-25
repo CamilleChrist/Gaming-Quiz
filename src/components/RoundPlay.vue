@@ -1,13 +1,15 @@
 <script setup>
-import { ref } from "vue";
+import { ref, computed, onMounted, useTemplateRef } from "vue";
 
-defineProps({
+const props = defineProps({
   imageUrl: { type: String, required: true },
   roundNumber: { type: Number, required: true },
   rounds: { type: Number, required: true },
   secondsLeft: { type: Number, required: true },
   // [{ id, name, answered }] : qui a répondu, sans la réponse
   players: { type: Array, required: true },
+  // Message du parent si l'envoi de la réponse a échoué
+  error: { type: String, default: "" },
 });
 
 // Le composant ne parle pas à Firebase : il prévient son parent, qui s'en charge.
@@ -15,6 +17,15 @@ const emit = defineEmits(["submit"]);
 
 const answer = ref("");
 const sent = ref(false);
+const answerInput = useTemplateRef("answer-input");
+
+// Le composant est recréé à chaque manche (:key dans GameView) : le curseur se place dans le champ à chaque fois.
+onMounted(() => answerInput.value?.focus());
+
+// Annoncer le chrono chaque seconde serait pénible avec un lecteur d'écran : seulement à 10 s et 5 s.
+const timerAnnouncement = computed(() =>
+  [10, 5].includes(props.secondsLeft) ? `Plus que ${props.secondsLeft} secondes` : "",
+);
 
 function submit() {
   emit("submit", answer.value);
@@ -36,12 +47,12 @@ function pass() {
       </p>
       <p
         role="timer"
-        aria-live="polite"
         class="text-3xl font-black tabular-nums"
         :class="secondsLeft <= 5 ? 'text-pink' : 'text-electric'"
       >
         {{ secondsLeft }} s
       </p>
+      <p class="sr-only" aria-live="polite">{{ timerAnnouncement }}</p>
     </div>
 
     <img
@@ -54,6 +65,7 @@ function pass() {
       <label for="answer" class="sr-only">Titre du jeu</label>
       <input
         id="answer"
+        ref="answer-input"
         v-model="answer"
         maxlength="100"
         autocomplete="off"
@@ -75,8 +87,9 @@ function pass() {
         Passer
       </button>
     </form>
-    <p v-else aria-live="polite" class="text-center font-bold text-electric">
-      <template v-if="!sent">Temps écoulé !</template>
+    <p v-else aria-live="polite" class="text-center font-bold" :class="error ? 'text-pink' : 'text-electric'">
+      <template v-if="error">{{ error }}</template>
+      <template v-else-if="!sent">Temps écoulé !</template>
       <template v-else-if="answer">Réponse envoyée !</template>
       <template v-else>Tu passes cette manche.</template>
     </p>
