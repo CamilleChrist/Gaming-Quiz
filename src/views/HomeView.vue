@@ -76,7 +76,9 @@ function joinGame() {
         />
       </div>
 
+      <!-- Arrivé par un lien d'invitation : on vient pour rejoindre, pas pour créer -->
       <button
+        v-if="!code"
         type="button"
         :disabled="!hasPseudo || busy"
         class="rounded-full bg-electric px-6 py-3 font-bold transition hover:brightness-110 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-pink disabled:cursor-not-allowed disabled:opacity-40"
