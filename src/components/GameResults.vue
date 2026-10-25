@@ -2,21 +2,16 @@
 import { computed } from "vue";
 
 const props = defineProps({
-  players: { type: Object, required: true },
+  // Classement final [{ id, name, score }], déjà trié par RoomView
+  ranking: { type: Array, required: true },
   playerId: { type: String, required: true },
   isHost: { type: Boolean, default: false },
 });
 
 const emit = defineEmits(["replay", "leave"]);
 
-const ranking = computed(() =>
-  Object.entries(props.players)
-    .map(([id, player]) => ({ id, name: player.name, score: player.score }))
-    .sort((a, b) => b.score - a.score),
-);
-
 // Plusieurs gagnants en cas d'égalité au meilleur score
-const winners = computed(() => ranking.value.filter((player) => player.score === ranking.value[0]?.score));
+const winners = computed(() => props.ranking.filter((player) => player.score === props.ranking[0]?.score));
 </script>
 
 <template>

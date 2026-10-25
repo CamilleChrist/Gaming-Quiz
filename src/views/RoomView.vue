@@ -11,6 +11,7 @@ import {
   leaveRoom,
   serverNow,
 } from "../services/firebase";
+import LobbyPanel from "../components/LobbyPanel.vue";
 import RoundPlay from "../components/RoundPlay.vue";
 import RoundReveal from "../components/RoundReveal.vue";
 import GameResults from "../components/GameResults.vue";
@@ -38,6 +39,12 @@ const playerList = computed(() =>
     name: player.name,
     answered: id in answered.value,
   })),
+);
+// Classement, du meilleur score au moins bon : partagé par la révélation et les résultats
+const ranking = computed(() =>
+  Object.entries(players.value)
+    .map(([id, player]) => ({ id, name: player.name, score: player.score }))
+    .sort((a, b) => b.score - a.score),
 );
 
 // La manche est finie quand le chrono tombe à 0, ou quand tout le monde a répondu (ou passé).
@@ -98,14 +105,16 @@ onMounted(async () => {
     watchRoom(props.code, "meta", (value) => {
       meta.value = value;
       loading.value = false;
-      // « Rejouer » : l'hôte remet le salon en attente, tout le monde y retourne
-      if (value?.status === "lobby") router.push(`/room/${props.code}`);
     }),
     watchRoom(props.code, "round", (value) => {
       round.value = value;
       answerError.value = ""; // Nouvelle manche : on oublie l'erreur de la précédente.
     }),
-    watchRoom(props.code, "players", (value) => (players.value = value ?? {})),
+    watchRoom(props.code, "players", (value) => {
+      players.value = value ?? {};
+      // Arrivé ici sans avoir rejoint (lien /room/… collé, page actualisée) : on passe par l'écran pour rejoindre.
+      if (value && !(playerId.value in value)) router.replace(`/join/${props.code}`);
+    }),
     watchRoom(props.code, "answered", (value) => (answered.value = value ?? {})),
   ];
   // Le chrono se recalcule 4 fois par seconde à partir de l'heure de fin écrite par l'hôte.
@@ -128,14 +137,26 @@ function warnHostBeforeLeaving(event) {
 
 <template>
   <main class="mx-auto flex min-h-dvh max-w-2xl flex-col justify-center gap-8 px-4 py-10">
-    <p v-if="loading || (meta && !round)" class="text-center text-muted">Chargement de la partie…</p>
+    <p v-if="loading" class="text-center text-muted">Chargement du salon…</p>
 
     <section v-else-if="!meta" class="flex flex-col gap-4 text-center">
-      <p>Cette partie n'existe plus : l'hôte l'a quittée.</p>
+      <p>Ce salon n'existe plus : l'hôte l'a fermé ou a quitté la partie.</p>
       <RouterLink to="/" class="font-bold text-pink underline">Retour à l'accueil</RouterLink>
     </section>
 
     <!-- Le statut écrit par l'hôte décide de l'écran affiché chez tout le monde -->
+    <LobbyPanel
+      v-else-if="meta.status === 'lobby'"
+      :code="code"
+      :meta="meta"
+      :players="players"
+      :player-id="playerId"
+      :is-host="isHost"
+      @leave="leave"
+    />
+
+    <p v-else-if="!round" class="text-center text-muted">Chargement de la partie…</p>
+
     <RoundPlay
       v-else-if="meta.status === 'playing'"
       :key="round.index"
@@ -152,7 +173,7 @@ function warnHostBeforeLeaving(event) {
       v-else-if="meta.status === 'reveal'"
       :code="code"
       :image-url="round.imageUrl"
-      :players="players"
+      :ranking="ranking"
       :player-id="playerId"
       :next-seconds-left="nextSecondsLeft"
       :is-last-round="round.index + 1 >= meta.rounds"
@@ -160,7 +181,7 @@ function warnHostBeforeLeaving(event) {
 
     <GameResults
       v-else-if="meta.status === 'finished'"
-      :players="players"
+      :ranking="ranking"
       :player-id="playerId"
       :is-host="isHost"
       @replay="replay"

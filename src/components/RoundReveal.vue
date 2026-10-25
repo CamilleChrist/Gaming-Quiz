@@ -5,7 +5,8 @@ import { watchRoom } from "../services/firebase";
 const props = defineProps({
   code: { type: String, required: true },
   imageUrl: { type: String, required: true },
-  players: { type: Object, required: true },
+  // Classement provisoire [{ id, name, score }], déjà trié par RoomView
+  ranking: { type: Array, required: true },
   playerId: { type: String, required: true },
   nextSecondsLeft: { type: Number, required: true },
   isLastRound: { type: Boolean, default: false },
@@ -15,17 +16,13 @@ const title = ref("");
 const points = ref({});
 const answers = ref({});
 
-// Classement provisoire : du meilleur score au moins bon
-const ranking = computed(() =>
-  Object.entries(props.players)
-    .map(([id, player]) => ({
-      id,
-      name: player.name,
-      score: player.score,
-      answer: answers.value[id]?.text ?? "",
-      points: points.value[id] ?? 0,
-    }))
-    .sort((a, b) => b.score - a.score),
+// On ajoute à chaque joueur sa réponse et ses points de la manche
+const results = computed(() =>
+  props.ranking.map((player) => ({
+    ...player,
+    answer: answers.value[player.id]?.text ?? "",
+    points: points.value[player.id] ?? 0,
+  })),
 );
 
 let unsubscribes = [];
@@ -60,7 +57,7 @@ onUnmounted(() => unsubscribes.forEach((unsubscribe) => unsubscribe()));
 
     <ol class="flex flex-col gap-2 rounded-3xl bg-card p-6">
       <li
-        v-for="(player, position) in ranking"
+        v-for="(player, position) in results"
         :key="player.id"
         class="flex items-center gap-4 rounded-xl bg-night px-4 py-3"
       >

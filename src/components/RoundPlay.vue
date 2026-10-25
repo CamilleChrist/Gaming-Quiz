@@ -19,7 +19,7 @@ const answer = ref("");
 const sent = ref(false);
 const answerInput = useTemplateRef("answer-input");
 
-// Le composant est recréé à chaque manche (:key dans GameView) : le curseur se place dans le champ à chaque fois.
+// Le composant est recréé à chaque manche (:key dans RoomView) : le curseur se place dans le champ à chaque fois.
 onMounted(() => answerInput.value?.focus());
 
 // Annoncer le chrono chaque seconde serait pénible avec un lecteur d'écran : seulement à 10 s et 5 s.
