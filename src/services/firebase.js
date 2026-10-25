@@ -2,6 +2,7 @@
 import { initializeApp } from "firebase/app";
 import { initializeAuth, browserSessionPersistence, signInAnonymously } from "firebase/auth";
 import { getDatabase, ref, get, set, update, remove, onValue, onDisconnect, serverTimestamp } from "firebase/database";
+import { computePoints } from "./rawg";
 
 // Your web app's Firebase configuration
 const firebaseConfig = {
@@ -18,6 +19,15 @@ const firebaseConfig = {
 const app = initializeApp(firebaseConfig);
 const auth = initializeAuth(app, { persistence: browserSessionPersistence });
 const db = getDatabase(app);
+
+// Écart entre l'horloge de ce PC et celle du serveur Firebase, tenu à jour par Firebase.
+// Il permet à tous les joueurs d'afficher le même chrono, même si leur PC n'est pas à l'heure.
+let serverTimeOffset = 0;
+onValue(ref(db, ".info/serverTimeOffset"), (snapshot) => (serverTimeOffset = snapshot.val()));
+
+export function serverNow() {
+  return Date.now() + serverTimeOffset;
+}
 
 export async function getPlayerId() {
   const { user } = await signInAnonymously(auth);
@@ -70,23 +80,50 @@ export async function joinRoom(code, name) {
 // Seul l'hôte remplit ce tableau : les titres restent dans la mémoire de son onglet, jamais dans la base, pour que personne ne puisse lire la réponse pendant la manche.
 let hostQuestions = [];
 
-export async function startGame(code, questions) {
+export async function startGame(code, questions, secondsPerRound) {
   hostQuestions = questions;
   // update() écrit plusieurs chemins d'un coup : les joueurs reçoivent la manche et le statut ensemble.
   await update(ref(db, `rooms/${code}`), {
-    round: { index: 0, imageUrl: questions[0].imageUrl },
+    round: {
+      index: 0,
+      imageUrl: questions[0].imageUrl,
+      endsAt: serverNow() + secondsPerRound * 1000,
+    },
     "meta/status": "playing",
   });
 }
 
 export async function submitAnswer(code, text) {
   const uid = await getPlayerId();
-  await set(ref(db, `rooms/${code}/answers/${uid}`), text.trim()); // Une seule réponse par joueur : les règles refusent la deuxième.
+  // La réponse reste cachée jusqu'à la révélation ; « answered » est visible de tous pour savoir qui a répondu.
+  // Une seule réponse par joueur, avant la fin du chrono : les règles refusent les autres.
+  await update(ref(db, `rooms/${code}`), {
+    [`answers/${uid}`]: { text: text.trim(), submittedAt: serverTimestamp() },
+    [`answered/${uid}`]: true,
+  });
 }
 
-export async function revealRound(code, index) {
+// L'hôte calcule les points de la manche, puis révèle le titre et les scores en une seule écriture.
+export async function revealRound(code, round, secondsPerRound) {
+  const title = hostQuestions[round.index].title;
+  const answers = await get(ref(db, `rooms/${code}/answers`));
+  const players = await get(ref(db, `rooms/${code}/players`));
+
+  const points = {};
+  const updates = {};
+  answers.forEach((answer) => {
+    const uid = answer.key;
+    if (!players.hasChild(uid)) return; // Joueur parti en cours de manche.
+
+    const { text, submittedAt } = answer.val();
+    const secondsLeft = Math.max(0, (round.endsAt - submittedAt) / 1000);
+    points[uid] = computePoints(text, title, secondsLeft, secondsPerRound);
+    updates[`players/${uid}/score`] = players.child(`${uid}/score`).val() + points[uid];
+  });
+
   await update(ref(db, `rooms/${code}`), {
-    reveal: { title: hostQuestions[index].title },
+    ...updates,
+    reveal: { title, points },
     "meta/status": "reveal",
   });
 }

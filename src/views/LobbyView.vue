@@ -54,7 +54,7 @@ async function start() {
   startError.value = "";
   try {
     const questions = await fetchQuestions(meta.value.rounds);
-    await startGame(props.code, questions);
+    await startGame(props.code, questions, meta.value.secondsPerRound);
   } catch (error) {
     console.error(error);
     startError.value = "Impossible de lancer la partie, réessaie.";

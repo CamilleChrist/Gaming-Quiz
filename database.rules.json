@@ -11,7 +11,11 @@
           ".read": "auth != null",
           "$uid": {
             ".write": "$uid === auth.uid && (!newData.exists() || root.child('rooms/' + $code + '/meta/status').val() === 'lobby')",
-            "name": { ".validate": "newData.isString() && newData.val().length <= 20" }
+            "name": { ".validate": "newData.isString() && newData.val().length <= 20" },
+            "score": {
+              ".write": "root.child('rooms/' + $code + '/meta/hostId').val() === auth.uid",
+              ".validate": "newData.isNumber()"
+            }
           }
         },
         "round": {
@@ -22,11 +26,20 @@
           ".read": "auth != null",
           ".write": "root.child('rooms/' + $code + '/meta/hostId').val() === auth.uid"
         },
-        "answers": {
-          ".read": "auth != null && root.child('rooms/' + $code + '/meta/status').val() === 'reveal'",
+        "answered": {
+          ".read": "auth != null",
           "$uid": {
             ".write": "$uid === auth.uid && !data.exists() && root.child('rooms/' + $code + '/meta/status').val() === 'playing'",
-            ".validate": "newData.isString() && newData.val().length <= 100"
+            ".validate": "newData.val() === true"
+          }
+        },
+        "answers": {
+          ".read": "auth != null && (root.child('rooms/' + $code + '/meta/status').val() === 'reveal' || root.child('rooms/' + $code + '/meta/hostId').val() === auth.uid)",
+          "$uid": {
+            ".write": "$uid === auth.uid && !data.exists() && root.child('rooms/' + $code + '/meta/status').val() === 'playing' && now <= root.child('rooms/' + $code + '/round/endsAt').val()",
+            ".validate": "newData.hasChildren(['text', 'submittedAt'])",
+            "text": { ".validate": "newData.isString() && newData.val().length <= 100" },
+            "submittedAt": { ".validate": "newData.val() === now" }
           }
         }
       }

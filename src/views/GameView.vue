@@ -1,6 +1,6 @@
 <script setup>
-import { ref, computed, onMounted, onUnmounted } from "vue";
-import { getPlayerId, watchRoom, submitAnswer, revealRound } from "../services/firebase";
+import { ref, computed, watch, onMounted, onUnmounted } from "vue";
+import { getPlayerId, watchRoom, submitAnswer, revealRound, serverNow } from "../services/firebase";
 import RoundPlay from "../components/RoundPlay.vue";
 import RoundReveal from "../components/RoundReveal.vue";
 
@@ -12,11 +12,38 @@ const playerId = ref("");
 const meta = ref(null);
 const round = ref(null);
 const players = ref({});
+const answered = ref({});
 const loading = ref(true);
+const now = ref(serverNow());
 
 const isHost = computed(() => meta.value?.hostId === playerId.value);
+const secondsLeft = computed(() =>
+  round.value ? Math.max(0, Math.ceil((round.value.endsAt - now.value) / 1000)) : 0,
+);
+const playerList = computed(() =>
+  Object.entries(players.value).map(([id, player]) => ({
+    id,
+    name: player.name,
+    answered: id in answered.value,
+  })),
+);
+
+// La manche est finie quand le chrono tombe à 0, ou quand tout le monde a répondu (ou passé).
+const roundOver = computed(() => {
+  if (!round.value || playerList.value.length === 0) return false;
+  return secondsLeft.value === 0 || playerList.value.every((player) => player.answered);
+});
+
+// watch() lance une fonction à chaque changement de valeur : ici, quand roundOver passe à true.
+// Seul l'hôte révèle la réponse et compte les points, une seule fois par manche.
+watch(roundOver, (over) => {
+  if (over && isHost.value && meta.value.status === "playing") {
+    revealRound(props.code, round.value, meta.value.secondsPerRound);
+  }
+});
 
 let unsubscribes = [];
+let timer;
 
 onMounted(async () => {
   playerId.value = await getPlayerId();
@@ -27,10 +54,16 @@ onMounted(async () => {
     }),
     watchRoom(props.code, "round", (value) => (round.value = value)),
     watchRoom(props.code, "players", (value) => (players.value = value ?? {})),
+    watchRoom(props.code, "answered", (value) => (answered.value = value ?? {})),
   ];
+  // Le chrono se recalcule 4 fois par seconde à partir de l'heure de fin écrite par l'hôte.
+  timer = setInterval(() => (now.value = serverNow()), 250);
 });
 
-onUnmounted(() => unsubscribes.forEach((unsubscribe) => unsubscribe()));
+onUnmounted(() => {
+  unsubscribes.forEach((unsubscribe) => unsubscribe());
+  clearInterval(timer);
+});
 </script>
 
 <template>
@@ -49,9 +82,9 @@ onUnmounted(() => unsubscribes.forEach((unsubscribe) => unsubscribe()));
       :image-url="round.imageUrl"
       :round-number="round.index + 1"
       :rounds="meta.rounds"
-      :is-host="isHost"
+      :seconds-left="secondsLeft"
+      :players="playerList"
       @submit="(text) => submitAnswer(code, text)"
-      @reveal="revealRound(code, round.index)"
     />
 
     <RoundReveal
