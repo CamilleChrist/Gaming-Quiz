@@ -17,6 +17,11 @@ describe("HomeView", () => {
     expect(wrapper.get("#room-code").element.value).toBe("AB12CD");
   });
 
+  it("hides the create button when arriving from an invitation link", () => {
+    const wrapper = mount(HomeView, { props: { code: "AB12CD" } });
+    expect(wrapper.text()).not.toContain("Créer une partie");
+  });
+
   it("asks for a pseudo until one is entered when a room code is set", async () => {
     const wrapper = mount(HomeView, { props: { code: "AB12CD" } });
     expect(wrapper.text()).toContain("Entre ton pseudo");
