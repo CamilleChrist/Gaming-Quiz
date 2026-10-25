@@ -1,8 +1,19 @@
 <script setup>
 import { ref, computed, watch, onMounted, onUnmounted } from "vue";
-import { getPlayerId, watchRoom, submitAnswer, revealRound, serverNow } from "../services/firebase";
+import { useRouter } from "vue-router";
+import {
+  getPlayerId,
+  watchRoom,
+  submitAnswer,
+  revealRound,
+  nextRound,
+  resetGame,
+  leaveRoom,
+  serverNow,
+} from "../services/firebase";
 import RoundPlay from "../components/RoundPlay.vue";
 import RoundReveal from "../components/RoundReveal.vue";
+import GameResults from "../components/GameResults.vue";
 
 const props = defineProps({
   code: { type: String, required: true },
@@ -42,6 +53,31 @@ watch(roundOver, (over) => {
   }
 });
 
+// Après la révélation, l'hôte enchaîne tout seul sur la manche suivante (ou les résultats) à l'heure « nextAt ».
+const nextSecondsLeft = computed(() =>
+  round.value?.nextAt ? Math.max(0, Math.ceil((round.value.nextAt - now.value) / 1000)) : 0,
+);
+const revealOver = computed(
+  () => meta.value?.status === "reveal" && Boolean(round.value?.nextAt) && nextSecondsLeft.value === 0,
+);
+
+watch(revealOver, (over) => {
+  if (over && isHost.value) {
+    nextRound(props.code, round.value, meta.value.secondsPerRound);
+  }
+});
+
+const router = useRouter();
+
+function replay() {
+  resetGame(props.code, Object.keys(players.value));
+}
+
+async function leave() {
+  await leaveRoom(props.code, isHost.value);
+  router.push("/");
+}
+
 let unsubscribes = [];
 let timer;
 
@@ -51,6 +87,8 @@ onMounted(async () => {
     watchRoom(props.code, "meta", (value) => {
       meta.value = value;
       loading.value = false;
+      // « Rejouer » : l'hôte remet le salon en attente, tout le monde y retourne
+      if (value?.status === "lobby") router.push(`/room/${props.code}`);
     }),
     watchRoom(props.code, "round", (value) => (round.value = value)),
     watchRoom(props.code, "players", (value) => (players.value = value ?? {})),
@@ -93,6 +131,17 @@ onUnmounted(() => {
       :image-url="round.imageUrl"
       :players="players"
       :player-id="playerId"
+      :next-seconds-left="nextSecondsLeft"
+      :is-last-round="round.index + 1 >= meta.rounds"
+    />
+
+    <GameResults
+      v-else-if="meta.status === 'finished'"
+      :players="players"
+      :player-id="playerId"
+      :is-host="isHost"
+      @replay="replay"
+      @leave="leave"
     />
   </main>
 </template>

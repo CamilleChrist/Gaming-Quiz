@@ -7,6 +7,8 @@ const props = defineProps({
   imageUrl: { type: String, required: true },
   players: { type: Object, required: true },
   playerId: { type: String, required: true },
+  nextSecondsLeft: { type: Number, required: true },
+  isLastRound: { type: Boolean, default: false },
 });
 
 const title = ref("");
@@ -44,14 +46,14 @@ onUnmounted(() => unsubscribes.forEach((unsubscribe) => unsubscribe()));
 </script>
 
 <template>
-  <section class="flex flex-col gap-6" aria-live="polite">
+  <section class="flex flex-col gap-6">
     <img
       :src="imageUrl"
       alt="Capture d'écran du jeu"
       class="aspect-video w-full rounded-3xl bg-card object-cover"
     />
 
-    <header class="text-center">
+    <header class="text-center" aria-live="polite">
       <p class="text-muted">C'était</p>
       <h2 class="text-3xl font-black text-pink">{{ title }}</h2>
     </header>
@@ -79,5 +81,9 @@ onUnmounted(() => unsubscribes.forEach((unsubscribe) => unsubscribe()));
         <span class="w-12 shrink-0 text-right font-black tabular-nums">{{ player.score }}</span>
       </li>
     </ol>
+
+    <p class="text-center text-muted">
+      {{ isLastRound ? "Résultats" : "Manche suivante" }} dans {{ nextSecondsLeft }} s
+    </p>
   </section>
 </template>
