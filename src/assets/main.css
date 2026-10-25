@@ -1,8 +1,78 @@
 @import "tailwindcss";
 
+/* Polices hébergées dans le projet (sous-ensemble latin, licences OFL à côté des fichiers) */
+@font-face {
+  font-family: "Bungee";
+  font-weight: 400;
+  font-display: swap;
+  src: url("./fonts/bungee-latin.woff2") format("woff2");
+}
+
+@font-face {
+  font-family: "Space Grotesk";
+  font-weight: 400 700;
+  font-display: swap;
+  src: url("./fonts/space-grotesk-latin.woff2") format("woff2");
+}
+
 @theme {
+  --font-sans: "Space Grotesk", system-ui, sans-serif;
+  --font-display: "Bungee", system-ui, sans-serif;
+
+  /* Ombres pleines « arcade » : la couleur se choisit avec shadow-violet, shadow-pink… */
+  --shadow-block: 6px 6px 0 black;
+  --shadow-block-sm: 4px 4px 0 black;
+  --shadow-key: 0 6px 0 black;
+  --shadow-key-sm: 0 4px 0 black;
+
+  /* Animations (à utiliser avec motion-safe: pour respecter « réduire les animations ») */
+  --animate-stamp: stamp 0.25s ease-in both;
+  --animate-slap: slap 0.4s ease-out both;
+  --animate-grow: grow 0.5s cubic-bezier(0.2, 0.9, 0.3, 1.2) both;
+  --animate-deal: deal 0.35s ease-out both;
+  --animate-beat: beat 1s ease-in-out infinite;
+
+  /* « Réponse envoyée ! » arrive comme un tampon */
+  @keyframes stamp {
+    from {
+      scale: 1.6;
+      opacity: 0;
+    }
+  }
+
+  /* Le titre révélé tombe d'un peu plus haut */
+  @keyframes slap {
+    from {
+      translate: 0 -1.5rem;
+      opacity: 0;
+    }
+  }
+
+  /* Les marches du podium montent depuis le sol */
+  @keyframes grow {
+    from {
+      scale: 1 0;
+    }
+  }
+
+  /* Chaque nouvelle capture arrive de la droite, comme une carte qu'on distribue */
+  @keyframes deal {
+    from {
+      translate: 3rem 0;
+      opacity: 0;
+    }
+  }
+
+  /* Le chrono bat comme un cœur dans les dernières secondes */
+  @keyframes beat {
+    50% {
+      scale: 1.15;
+    }
+  }
+
   --color-night: #0b1030;
-  --color-electric: #2f6bff;
+  /* Assez foncé pour que le texte clair posé dessus reste lisible (contraste 4,8:1) */
+  --color-electric: #2563eb;
   --color-pink: #ff3d8b;
   --color-violet: #8b5cf6;
   --color-card: #161d4d;
