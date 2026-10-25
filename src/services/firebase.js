@@ -39,7 +39,6 @@ export async function createRoom(name) {
   const room = {
     meta: {
       hostId: uid,
-      createdAt: serverTimestamp(),
       status: "lobby",
       rounds: 10,
       secondsPerRound: 30,
