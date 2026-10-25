@@ -80,17 +80,44 @@ export async function joinRoom(code, name) {
 // Seul l'hôte remplit ce tableau : les titres restent dans la mémoire de son onglet, jamais dans la base, pour que personne ne puisse lire la réponse pendant la manche.
 let hostQuestions = [];
 
-export async function startGame(code, questions, secondsPerRound) {
-  hostQuestions = questions;
-  // update() écrit plusieurs chemins d'un coup : les joueurs reçoivent la manche et le statut ensemble.
-  await update(ref(db, `rooms/${code}`), {
+const REVEAL_SECONDS = 6; // Durée d'affichage de la réponse avant la manche suivante.
+
+// update() écrit plusieurs chemins d'un coup : les joueurs reçoivent la manche et le statut ensemble.
+// Les réponses de la manche précédente sont effacées (null = suppression).
+function startRound(code, index, secondsPerRound) {
+  return update(ref(db, `rooms/${code}`), {
     round: {
-      index: 0,
-      imageUrl: questions[0].imageUrl,
+      index,
+      imageUrl: hostQuestions[index].imageUrl,
       endsAt: serverNow() + secondsPerRound * 1000,
     },
+    answers: null,
+    answered: null,
+    reveal: null,
     "meta/status": "playing",
   });
+}
+
+export async function startGame(code, questions, secondsPerRound) {
+  hostQuestions = questions;
+  await startRound(code, 0, secondsPerRound);
+}
+
+// Après la révélation : manche suivante, ou fin de partie s'il n'y a plus de question.
+export async function nextRound(code, round, secondsPerRound) {
+  const index = round.index + 1;
+  if (index < hostQuestions.length) {
+    await startRound(code, index, secondsPerRound);
+  } else {
+    await update(ref(db, `rooms/${code}/meta`), { status: "finished" });
+  }
+}
+
+// « Rejouer » : retour au salon avec les mêmes joueurs, scores remis à zéro.
+export async function resetGame(code, playerIds) {
+  const updates = { round: null, answers: null, answered: null, reveal: null, "meta/status": "lobby" };
+  playerIds.forEach((uid) => (updates[`players/${uid}/score`] = 0));
+  await update(ref(db, `rooms/${code}`), updates);
 }
 
 export async function submitAnswer(code, text) {
@@ -124,6 +151,7 @@ export async function revealRound(code, round, secondsPerRound) {
   await update(ref(db, `rooms/${code}`), {
     ...updates,
     reveal: { title, points },
+    "round/nextAt": serverNow() + REVEAL_SECONDS * 1000,
     "meta/status": "reveal",
   });
 }

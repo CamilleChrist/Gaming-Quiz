@@ -28,6 +28,7 @@
         },
         "answered": {
           ".read": "auth != null",
+          ".write": "root.child('rooms/' + $code + '/meta/hostId').val() === auth.uid",
           "$uid": {
             ".write": "$uid === auth.uid && !data.exists() && root.child('rooms/' + $code + '/meta/status').val() === 'playing'",
             ".validate": "newData.val() === true"
@@ -35,6 +36,7 @@
         },
         "answers": {
           ".read": "auth != null && (root.child('rooms/' + $code + '/meta/status').val() === 'reveal' || root.child('rooms/' + $code + '/meta/hostId').val() === auth.uid)",
+          ".write": "root.child('rooms/' + $code + '/meta/hostId').val() === auth.uid",
           "$uid": {
             ".write": "$uid === auth.uid && !data.exists() && root.child('rooms/' + $code + '/meta/status').val() === 'playing' && now <= root.child('rooms/' + $code + '/round/endsAt').val()",
             ".validate": "newData.hasChildren(['text', 'submittedAt'])",
