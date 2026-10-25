@@ -40,12 +40,18 @@ const playerList = computed(() =>
     answered: id in answered.value,
   })),
 );
-// Classement, du meilleur score au moins bon : partagé par la révélation et les résultats
-const ranking = computed(() =>
-  Object.entries(players.value)
+// Classement, du meilleur score au moins bon : partagé par la révélation et les résultats.
+// Rang avec égalités : deux premiers ex æquo sont 1 et 1, le suivant est 3
+// (le rang est la position du premier joueur qui a le même score).
+const ranking = computed(() => {
+  const sorted = Object.entries(players.value)
     .map(([id, player]) => ({ id, name: player.name, score: player.score }))
-    .sort((a, b) => b.score - a.score),
-);
+    .sort((a, b) => b.score - a.score);
+  return sorted.map((player) => ({
+    ...player,
+    rank: sorted.findIndex((other) => other.score === player.score) + 1,
+  }));
+});
 
 // La manche est finie quand le chrono tombe à 0, ou quand tout le monde a répondu (ou passé).
 const roundOver = computed(() => {
@@ -136,12 +142,23 @@ function warnHostBeforeLeaving(event) {
 </script>
 
 <template>
-  <main class="mx-auto flex min-h-dvh max-w-2xl flex-col justify-center gap-8 px-4 py-10">
-    <p v-if="loading" class="text-center text-muted">Chargement du salon…</p>
+  <!-- Chaque écran règle sa propre largeur : ici, seulement la place maximale -->
+  <main class="mx-auto flex min-h-dvh max-w-5xl flex-col justify-center gap-8 px-6 py-10">
+    <p v-if="loading" class="text-center font-display text-xl text-muted motion-safe:animate-pulse">
+      Chargement du salon…
+    </p>
 
-    <section v-else-if="!meta" class="flex flex-col gap-4 text-center">
-      <p>Ce salon n'existe plus : l'hôte l'a fermé ou a quitté la partie.</p>
-      <RouterLink to="/" class="font-bold text-pink underline">Retour à l'accueil</RouterLink>
+    <section
+      v-else-if="!meta"
+      class="mx-auto flex w-full max-w-md flex-col gap-5 rounded-2xl bg-ink p-6 text-night shadow-block shadow-pink"
+    >
+      <p class="text-xl font-bold">Ce salon n'existe plus : l'hôte l'a fermé ou a quitté la partie.</p>
+      <RouterLink
+        to="/"
+        class="grid h-14 place-items-center rounded-xl border-2 border-night bg-pink font-display text-lg shadow-key-sm shadow-night transition hover:brightness-110 focus-visible:outline-3 focus-visible:outline-offset-2 focus-visible:outline-electric active:translate-y-1 active:shadow-none"
+      >
+        Retour à l'accueil
+      </RouterLink>
     </section>
 
     <!-- Le statut écrit par l'hôte décide de l'écran affiché chez tout le monde -->
@@ -155,7 +172,9 @@ function warnHostBeforeLeaving(event) {
       @leave="leave"
     />
 
-    <p v-else-if="!round" class="text-center text-muted">Chargement de la partie…</p>
+    <p v-else-if="!round" class="text-center font-display text-xl text-muted motion-safe:animate-pulse">
+      Chargement de la partie…
+    </p>
 
     <RoundPlay
       v-else-if="meta.status === 'playing'"
@@ -164,6 +183,7 @@ function warnHostBeforeLeaving(event) {
       :round-number="round.index + 1"
       :rounds="meta.rounds"
       :seconds-left="secondsLeft"
+      :seconds-per-round="meta.secondsPerRound"
       :players="playerList"
       :error="answerError"
       @submit="sendAnswer"
