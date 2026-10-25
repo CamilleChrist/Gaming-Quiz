@@ -1,7 +1,6 @@
 import { createRouter, createWebHistory } from "vue-router";
 import HomeView from "../views/HomeView.vue";
-import LobbyView from "../views/LobbyView.vue";
-import GameView from "../views/GameView.vue";
+import RoomView from "../views/RoomView.vue";
 
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
@@ -16,14 +15,10 @@ const router = createRouter({
       component: HomeView,
       props: true,
     },
+    // Salon d'attente, manches et résultats : RoomView choisit l'écran selon le statut du salon
     {
       path: "/room/:code",
-      component: LobbyView,
-      props: true,
-    },
-    {
-      path: "/room/:code/play",
-      component: GameView,
+      component: RoomView,
       props: true,
     },
   ],
