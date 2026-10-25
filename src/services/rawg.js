@@ -11,7 +11,12 @@ export function fetchQuestions(count) {
       if (!response.ok) throw new Error(`RAWG a répondu ${response.status}`);
       return response.json();
     })
-    .then(({ results: games }) => {
+    .then(({ results }) => {
+      // On écarte les jeux sans image (sinon capture cassée) et ceux réservés aux adultes.
+      const games = results.filter(
+        (game) => game.background_image && game.esrb_rating?.slug !== "adults-only",
+      );
+
       games.sort(() => Math.random() - 0.5); // On mélange
 
       // On garde `count` jeux.
