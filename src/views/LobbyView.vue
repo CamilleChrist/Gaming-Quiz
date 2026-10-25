@@ -1,7 +1,8 @@
 <script setup>
 import { ref, computed, onMounted, onUnmounted } from "vue";
 import { useRouter } from "vue-router";
-import { getPlayerId, watchRoom, leaveRoom } from "../services/firebase";
+import { getPlayerId, watchRoom, leaveRoom, startGame } from "../services/firebase";
+import { fetchQuestions } from "../services/rawg";
 
 const props = defineProps({
   code: { type: String, required: true },
@@ -12,6 +13,9 @@ const meta = ref(null);
 const players = ref({});
 const loading = ref(true);
 const copied = ref(false);
+const starting = ref(false);
+const startError = ref("");
+const router = useRouter();
 
 const inviteLink = computed(() => `${location.origin}/join/${props.code}`);
 const isHost = computed(() => meta.value?.hostId === playerId.value);
@@ -31,6 +35,8 @@ onMounted(async () => {
     watchRoom(props.code, "meta", (value) => {
       meta.value = value;
       loading.value = false;
+      // Quand l'hôte lance la partie, tous les joueurs passent à l'écran de jeu
+      if (value?.status === "playing") router.push(`/room/${props.code}/play`);
     }),
     watchRoom(props.code, "players", (value) => (players.value = value ?? {})),
   ];
@@ -43,7 +49,18 @@ async function copyLink() {
   copied.value = true;
 }
 
-const router = useRouter();
+async function start() {
+  starting.value = true;
+  startError.value = "";
+  try {
+    const questions = await fetchQuestions(meta.value.rounds);
+    await startGame(props.code, questions);
+  } catch (error) {
+    console.error(error);
+    startError.value = "Impossible de lancer la partie, réessaie.";
+    starting.value = false;
+  }
+}
 
 async function leave() {
   await leaveRoom(props.code, isHost.value);
@@ -119,13 +136,17 @@ async function leave() {
       <button
         v-if="isHost"
         type="button"
-        disabled
-        class="rounded-full bg-electric px-6 py-3 font-bold disabled:cursor-not-allowed disabled:opacity-40"
+        :disabled="starting"
+        class="rounded-full bg-electric px-6 py-3 font-bold transition hover:brightness-110 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-pink disabled:cursor-not-allowed disabled:opacity-40"
+        @click="start"
       >
-        Lancer la partie
+        {{ starting ? "Préparation des questions…" : "Lancer la partie" }}
       </button>
       <p v-else class="text-center text-muted">
         En attente du lancement par l'hôte…
+      </p>
+      <p v-if="startError" role="alert" class="text-center text-sm text-pink">
+        {{ startError }}
       </p>
 
       <button

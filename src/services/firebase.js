@@ -1,7 +1,7 @@
 // Import the functions you need from the SDKs you need
 import { initializeApp } from "firebase/app";
 import { initializeAuth, browserSessionPersistence, signInAnonymously } from "firebase/auth";
-import { getDatabase, ref, get, set, remove, onValue, onDisconnect, serverTimestamp } from "firebase/database";
+import { getDatabase, ref, get, set, update, remove, onValue, onDisconnect, serverTimestamp } from "firebase/database";
 
 // Your web app's Firebase configuration
 const firebaseConfig = {
@@ -65,6 +65,30 @@ export async function joinRoom(code, name) {
   await onDisconnect(playerRef).remove(); // Si le joueur ferme l'onglet, il quitte le salon.
 
   return code;
+}
+
+// Seul l'hôte remplit ce tableau : les titres restent dans la mémoire de son onglet, jamais dans la base, pour que personne ne puisse lire la réponse pendant la manche.
+let hostQuestions = [];
+
+export async function startGame(code, questions) {
+  hostQuestions = questions;
+  // update() écrit plusieurs chemins d'un coup : les joueurs reçoivent la manche et le statut ensemble.
+  await update(ref(db, `rooms/${code}`), {
+    round: { index: 0, imageUrl: questions[0].imageUrl },
+    "meta/status": "playing",
+  });
+}
+
+export async function submitAnswer(code, text) {
+  const uid = await getPlayerId();
+  await set(ref(db, `rooms/${code}/answers/${uid}`), text.trim()); // Une seule réponse par joueur : les règles refusent la deuxième.
+}
+
+export async function revealRound(code, index) {
+  await update(ref(db, `rooms/${code}`), {
+    reveal: { title: hostQuestions[index].title },
+    "meta/status": "reveal",
+  });
 }
 
 export async function leaveRoom(code, isHost) {
