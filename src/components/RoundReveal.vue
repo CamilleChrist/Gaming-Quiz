@@ -1,7 +1,6 @@
 <script setup>
 import { ref, computed, onMounted, onUnmounted } from "vue";
 import { watchRoom } from "../services/firebase";
-import { isCorrectAnswer } from "../services/rawg";
 
 const props = defineProps({
   code: { type: String, required: true },
@@ -11,13 +10,20 @@ const props = defineProps({
 });
 
 const title = ref("");
+const points = ref({});
 const answers = ref({});
 
-const results = computed(() =>
-  Object.entries(props.players).map(([id, player]) => {
-    const answer = answers.value[id] ?? "";
-    return { id, name: player.name, answer, correct: isCorrectAnswer(answer, title.value) };
-  }),
+// Classement provisoire : du meilleur score au moins bon
+const ranking = computed(() =>
+  Object.entries(props.players)
+    .map(([id, player]) => ({
+      id,
+      name: player.name,
+      score: player.score,
+      answer: answers.value[id]?.text ?? "",
+      points: points.value[id] ?? 0,
+    }))
+    .sort((a, b) => b.score - a.score),
 );
 
 let unsubscribes = [];
@@ -26,7 +32,10 @@ let unsubscribes = [];
 // que les règles cachent pendant la manche.
 onMounted(() => {
   unsubscribes = [
-    watchRoom(props.code, "reveal", (value) => (title.value = value?.title ?? "")),
+    watchRoom(props.code, "reveal", (value) => {
+      title.value = value?.title ?? "";
+      points.value = value?.points ?? {};
+    }),
     watchRoom(props.code, "answers", (value) => (answers.value = value ?? {})),
   ];
 });
@@ -47,26 +56,28 @@ onUnmounted(() => unsubscribes.forEach((unsubscribe) => unsubscribe()));
       <h2 class="text-3xl font-black text-pink">{{ title }}</h2>
     </header>
 
-    <ul class="flex flex-col gap-2 rounded-3xl bg-card p-6">
+    <ol class="flex flex-col gap-2 rounded-3xl bg-card p-6">
       <li
-        v-for="result in results"
-        :key="result.id"
-        class="flex items-center justify-between gap-4 rounded-xl bg-night px-4 py-3"
+        v-for="(player, position) in ranking"
+        :key="player.id"
+        class="flex items-center gap-4 rounded-xl bg-night px-4 py-3"
       >
-        <span class="min-w-0">
-          <span class="font-semibold">{{ result.name }}</span>
-          <span v-if="result.id === playerId" class="text-muted"> (toi)</span>
+        <span class="font-black text-muted">{{ position + 1 }}</span>
+        <span class="min-w-0 flex-1">
+          <span class="font-semibold">{{ player.name }}</span>
+          <span v-if="player.id === playerId" class="text-muted"> (toi)</span>
           <span class="block truncate text-sm text-muted">
-            {{ result.answer || "Pas de réponse" }}
+            {{ player.answer || "Pas de réponse" }}
           </span>
         </span>
         <span
           class="shrink-0 rounded-full px-3 py-1 text-sm font-bold"
-          :class="result.correct ? 'bg-electric' : 'bg-card text-muted'"
+          :class="player.points > 0 ? 'bg-electric' : 'bg-card text-muted'"
         >
-          {{ result.correct ? "Trouvé !" : "Raté" }}
+          {{ player.points > 0 ? `+${player.points}` : "Raté" }}
         </span>
+        <span class="w-12 shrink-0 text-right font-black tabular-nums">{{ player.score }}</span>
       </li>
-    </ul>
+    </ol>
   </section>
 </template>

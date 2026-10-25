@@ -40,3 +40,9 @@ export function isCorrectAnswer(answer, title) {
   const mainTitle = title.split(/[:(]/)[0];
   return given === normalizeTitle(title) || given === normalizeTitle(mainTitle);
 }
+
+// 100 points pour une bonne réponse, plus un bonus de rapidité : jusqu'à 50 points selon le temps restant.
+export function computePoints(answer, title, secondsLeft, secondsPerRound) {
+  if (!isCorrectAnswer(answer, title)) return 0;
+  return 100 + Math.round((50 * secondsLeft) / secondsPerRound);
+}
