@@ -2,7 +2,7 @@
 import { initializeApp } from "firebase/app";
 import { initializeAuth, browserSessionPersistence, signInAnonymously } from "firebase/auth";
 import { getDatabase, ref, get, set, update, remove, onValue, onDisconnect, serverTimestamp } from "firebase/database";
-import { computePoints } from "./rawg";
+import { scoreRound } from "./rawg";
 
 // Your web app's Firebase configuration
 const firebaseConfig = {
@@ -135,21 +135,20 @@ export async function submitAnswer(code, text) {
 }
 
 // L'hôte calcule les points de la manche, puis révèle le titre et les scores en une seule écriture.
-export async function revealRound(code, round, secondsPerRound) {
+export async function revealRound(code, round) {
   const title = hostQuestions[round.index].title;
   const answers = await get(ref(db, `rooms/${code}/answers`));
   const players = await get(ref(db, `rooms/${code}/players`));
 
-  const points = {};
-  const updates = {};
+  const list = [];
   answers.forEach((answer) => {
-    const uid = answer.key;
-    if (!players.hasChild(uid)) return; // Joueur parti en cours de manche.
+    if (players.hasChild(answer.key)) list.push({ uid: answer.key, ...answer.val() }); // Ignore les joueurs partis en cours de manche.
+  });
+  const points = scoreRound(list, title);
 
-    const { text, submittedAt } = answer.val();
-    const secondsLeft = Math.max(0, (round.endsAt - submittedAt) / 1000);
-    points[uid] = computePoints(text, title, secondsLeft, secondsPerRound);
-    updates[`players/${uid}/score`] = players.child(`${uid}/score`).val() + points[uid];
+  const updates = {};
+  Object.entries(points).forEach(([uid, value]) => {
+    updates[`players/${uid}/score`] = players.child(`${uid}/score`).val() + value;
   });
 
   await update(ref(db, `rooms/${code}`), {

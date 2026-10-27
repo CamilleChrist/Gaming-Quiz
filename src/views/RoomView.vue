@@ -63,7 +63,7 @@ const roundOver = computed(() => {
 // Seul l'hôte révèle la réponse et compte les points, une seule fois par manche.
 watch(roundOver, (over) => {
   if (over && isHost.value && meta.value.status === "playing") {
-    revealRound(props.code, round.value, meta.value.secondsPerRound);
+    revealRound(props.code, round.value);
   }
 });
 
