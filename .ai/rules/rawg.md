@@ -4,6 +4,8 @@ paths:
 
   - 'src/services/rawg.js'
 
+  - 'src/services/scoring.js'
+
 ---
 
 # RAWG API
@@ -16,4 +18,4 @@ Documentation: https://rawg.io/apidocs
 * Pick games from varied genres, never the same game twice in a game, and make difficulty progressive when it stays simple.
 * Handle loading, API errors and missing screenshots (fall back to another game or screenshot).
 * Normalize titles before comparing: lowercase, trim, remove punctuation and extra spaces.
-* Keep the normalization and scoring functions pure so they can be unit tested.
+* Title normalization and scoring live in `src/services/scoring.js`, not in `rawg.js`. Keep them pure so they can be unit tested.

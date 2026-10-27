@@ -100,7 +100,7 @@ rooms/{code}/
 (projet Vue à la racine du dépôt, pas de dossier client/)
 src/components/   composants réutilisables (liste joueurs, chrono, carte jeu…)
 src/views/        Accueil, Salon, Jeu, Résultats
-src/services/     firebase.js (init + helpers de lecture/écriture), rawg.js
+src/services/     firebase.js (init + helpers de lecture/écriture), rawg.js, scoring.js (normalisation des titres, points)
 src/assets/       main.css (import Tailwind + @theme), logo
 src/App.vue, src/main.js
 .env.example      VITE_FIREBASE_*, VITE_RAWG_API_KEY (sans valeurs)

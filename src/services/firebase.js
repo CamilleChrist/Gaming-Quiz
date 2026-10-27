@@ -2,7 +2,7 @@
 import { initializeApp } from "firebase/app";
 import { initializeAuth, browserSessionPersistence, signInAnonymously } from "firebase/auth";
 import { getDatabase, ref, get, set, update, remove, onValue, onDisconnect, serverTimestamp } from "firebase/database";
-import { scoreRound } from "./rawg";
+import { scoreRound } from "./scoring";
 
 // Your web app's Firebase configuration
 const firebaseConfig = {
