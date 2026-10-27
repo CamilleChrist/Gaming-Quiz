@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { normalizeTitle, computePoints, scoreRound } from "../services/rawg";
+import { normalizeTitle, computePoints, scoreRound } from "../services/scoring";
 
 describe("normalizeTitle", () => {
   it("removes case, accents, apostrophes and punctuation", () => {
